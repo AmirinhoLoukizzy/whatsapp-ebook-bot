@@ -170,6 +170,9 @@ function formatNumber(number) {
 const BOT_NUMBER_FORMATTED = formatNumber(CONFIG.BOT_NUMBER);
 const ADMIN_NUMBER_FORMATTED = formatNumber(CONFIG.ADMIN_NUMBER);
 
+console.log('🤖 Bot number formatado:', BOT_NUMBER_FORMATTED);
+console.log('👨‍💼 Admin number formatado:', ADMIN_NUMBER_FORMATTED);
+
 // ========== SISTEMA DE ARQUIVOS ==========
 const dataDir = path.join(__dirname, 'data');
 const ebooksDir = path.join(__dirname, 'ebooks');
@@ -989,13 +992,198 @@ Envie o *COMPROVANTE* de pagamento (foto ou texto) para finalizar a compra.
 
         // 👨‍💼 COMPORTAMENTO PARA ADMIN
         if (isAdminBotChat) {
-            // ... (TODO O SEU CÓDIGO ADMIN AQUI - MANTENHA IGUAL) ...
-            
-            // Comando não reconhecido para admin
-            if (messageBody.startsWith('!') || messageBody.startsWith('/')) {
-                await message.reply(`❌ Comando não reconhecido.\nUse /help para ver todos os comandos.`);
-            }
+    console.log(`✅ ADMIN DETECTADO: ${customerName}`);
+    console.log(`📞 Número do admin: ${message.from}`);
+    console.log(`🎯 Comando recebido: ${messageBody}`);
+    console.log(`🔍 Comparando: ${message.from} === ${ADMIN_NUMBER_FORMATTED}`);
+    
+    // ========== COMANDOS DE PEDIDOS ==========
+    
+    // Listar pedidos
+    if (messageLower === '/pedidos' || messageLower === 'pedidos') {
+        const pendingOrders = getPendingOrders();
+        
+        if (pendingOrders.length === 0) {
+            await message.reply('📋 *PEDIDOS*\n\n🎉 Nenhum pedido pendente!');
+            return;
         }
+
+        let ordersList = `📋 *PEDIDOS PENDENTES: ${pendingOrders.length}*\n\n`;
+        pendingOrders.forEach((order, index) => {
+            if (index < 10) {
+                const methodIcon = order.paymentMethod === 'M-PESA' ? '📱' : 
+                                 order.paymentMethod === 'E-MOLA' ? '💰' : '📄';
+                
+                ordersList += `${methodIcon} *Pedido #${order.id}*\n`;
+                ordersList += `👤 ${order.customerName}\n`;
+                ordersList += `📞 ${order.customerNumber.replace('@c.us', '')}\n`;
+                ordersList += `📚 ${order.ebookName}\n`;
+                ordersList += `💎 ${order.price} MZN\n`;
+                ordersList += `📱 ${order.paymentMethod}\n`;
+                ordersList += `⏰ ${new Date(order.createdAt).toLocaleString('pt-BR')}\n`;
+                ordersList += `✅ *aprovar ${order.id}* | ❌ *recusar ${order.id}*\n`;
+                ordersList += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+            }
+        });
+
+        if (pendingOrders.length > 10) {
+            ordersList += `📄 Mostrando 10 de ${pendingOrders.length} pedidos\n`;
+        }
+
+        await message.reply(ordersList);
+        return;
+    }
+
+    // Aprovar pedido
+    if (messageLower.startsWith('aprovar ')) {
+        const orderId = messageLower.split(' ')[1];
+        const order = findOrder(orderId);
+
+        if (!order) {
+            await message.reply(`❌ Pedido #${orderId} não encontrado.`);
+            return;
+        }
+
+        if (order.status !== 'aguardando_aprovacao') {
+            await message.reply(`❌ Pedido #${orderId} já foi processado.`);
+            return;
+        }
+
+        order.status = 'aprovado';
+        order.approvedAt = new Date().toISOString();
+        saveOrders();
+
+        removePendingCustomer(order.customerNumber);
+
+        const success = await sendEbook(order.customerNumber, order.ebookId);
+
+        if (success) {
+            await message.reply(`✅ *PEDIDO #${orderId} APROVADO!*\n\n📤 Ebook enviado para: ${order.customerName}\n📚 ${order.ebookName}\n💎 ${order.price} MZN\n📱 ${order.paymentMethod}`);
+            console.log(`✅ Pedido #${orderId} aprovado`);
+        } else {
+            await message.reply(`⚠️ *PEDIDO #${orderId} APROVADO* mas houve erro no envio.\n\n📧 Cliente notificado para contatar suporte.`);
+        }
+
+        return;
+    }
+    
+    // Recusar pedido
+    if (messageLower.startsWith('recusar ')) {
+        const orderId = messageLower.split(' ')[1];
+        const order = findOrder(orderId);
+
+        if (!order) {
+            await message.reply(`❌ Pedido #${orderId} não encontrado.`);
+            return;
+        }
+
+        if (order.status !== 'aguardando_aprovacao') {
+            await message.reply(`❌ Pedido #${orderId} já foi processado.`);
+            return;
+        }
+
+        order.status = 'recusado';
+        order.rejectedAt = new Date().toISOString();
+        saveOrders();
+
+        removePendingCustomer(order.customerNumber);
+
+        await client.sendMessage(order.customerNumber, 
+            `❌ *PEDIDO #${orderId} RECUSADO!*\n\nSua transação não foi aprovada pelo nosso sistema de validação.\n\n📧 Entre em contato com nosso suporte para mais informações:\n${CONFIG.SUPPORT_EMAIL}`);
+
+        await message.reply(`❌ *PEDIDO #${orderId} RECUSADO!*\n\n👤 Cliente: ${order.customerName}\n📚 Produto: ${order.ebookName}\n📱 Método: ${order.paymentMethod}\n📞 Cliente notificado.`);
+
+        console.log(`❌ Pedido #${orderId} recusado`);
+        return;
+    }
+
+    // ========== COMANDOS DE RELATÓRIOS ==========
+    
+    if (messageLower === '/status' || messageLower === 'status' || messageLower === '/relatorio') {
+        const report = getSalesReport();
+        let statusMessage = `📊 *RELATÓRIO DO SISTEMA*
+
+📦 *PEDIDOS:*
+• Total: ${report.totalOrders}
+• Pendentes: ${report.pendingOrders}
+• Aprovados: ${report.approvedOrders}
+• Recusados: ${report.rejectedOrders}
+
+💰 *HOJE ${new Date().toLocaleDateString('pt-BR')}:*
+• Vendas: ${report.todaySales}
+• Receita: ${report.todayRevenue} MZN
+• M-PESA: ${report.mpesaCount}
+• E-mola: ${report.emolaCount}
+
+📚 *CATÁLOGO:*
+• Ebooks ativos: ${getActiveEbooks().length}
+• Total ebooks: ${ebooks.length}
+
+🤖 *SISTEMA:*
+• Bot: ${CONFIG.BOT_NUMBER}
+• Online: ✅ Conectado`;
+
+        await message.reply(statusMessage);
+        return;
+    }
+
+    // ========== COMANDOS DE EBOOKS ==========
+    
+    // Listar ebooks
+    if (messageLower === '/listar_ebooks' || messageLower === 'listar ebooks') {
+        if (ebooks.length === 0) {
+            await message.reply('📚 *EBOOKS*\n\nNenhum ebook cadastrado.');
+            return;
+        }
+
+        let ebooksList = `📚 *CATÁLOGO DE EBOOKS: ${ebooks.length}*\n\n`;
+        ebooks.forEach(ebook => {
+            ebooksList += `🆔 *${ebook.id}* - ${ebook.name}\n`;
+            ebooksList += `💎 ${ebook.price} MZN | ${ebook.active ? '✅ Ativo' : '❌ Inativo'}\n`;
+            ebooksList += `📁 ${ebook.filename}\n`;
+            ebooksList += `⏰ ${new Date(ebook.createdAt).toLocaleDateString('pt-BR')}\n`;
+            ebooksList += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+        });
+
+        ebooksList += `💡 *COMANDOS EBOOKS:*\n`;
+        ebooksList += `/adicionar_ebook [NOME] [PREÇO]\n`;
+        ebooksList += `/editar_ebook [ID] [NOVO_PREÇO]\n`;
+        ebooksList += `/remover_ebook [ID]\n`;
+
+        await message.reply(ebooksList);
+        return;
+    }
+
+    // Ajuda admin
+    if (messageLower === '/help' || messageLower === 'help' || messageLower === 'ajuda') {
+        const helpMessage = `🤖 *COMANDOS DO ADMIN*
+
+📦 *PEDIDOS:*
+/pedidos - Listar pedidos pendentes
+aprovar [ID] - Aprovar pedido
+recusar [ID] - Recusar pedido
+/status - Relatório do sistema
+
+📚 *EBOOKS:*
+/listar_ebooks - Listar todos ebooks
+/adicionar_ebook "[NOME]" [PREÇO] - Adicionar ebook
+/editar_ebook [ID] [PREÇO] - Editar preço
+/remover_ebook [ID] - Remover ebook
+
+📊 *ESTATÍSTICAS:*
+Pedidos pendentes: ${getPendingOrders().length}
+Total ebooks: ${ebooks.length}
+Ebooks ativos: ${getActiveEbooks().length}`;
+
+        await message.reply(helpMessage);
+        return;
+    }
+
+    // Comando não reconhecido para admin
+    if (messageBody.startsWith('!') || messageBody.startsWith('/')) {
+        await message.reply(`❌ Comando não reconhecido.\nUse /help para ver todos os comandos.`);
+    }
+}
 
     } catch (error) {
         console.error('❌ Erro ao processar mensagem:', error);
@@ -1230,6 +1418,7 @@ process.on('SIGINT', async () => {
     console.log('✅ Bot encerrado com sucesso!');
     process.exit(0);
 });
+
 
 
 
