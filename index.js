@@ -771,6 +771,35 @@ async function forwardToSupport(message, customerName, customerNumber) {
     await message.reply(`✅ *Sua mensagem foi encaminhada para o suporte!*\n\nEm breve entraremos em contato com você.\n\n📧 ${CONFIG.SUPPORT_EMAIL}`);
 }
 
+// Função de ajuda para clientes
+async function sendHelpMessage(chat, isUnknownCommand = false) {
+    const helpMessage = `🤖 *COMANDOS DISPONÍVEIS*
+
+📚 *CATÁLOGO & COMPRAS:*
+• \`menu\` - Ver catálogo de ebooks
+• \`1, 2, 3...\` - Selecionar ebook pelo número
+• \`status [número]\` - Ver status do pedido
+
+💳 *PAGAMENTO:*
+📱 M-PESA: ${CONFIG.PAYMENT_METHODS.MPESA} (Amiro Carlos)
+💰 E-mola: ${CONFIG.PAYMENT_METHODS.EMOLA} (Amiro Carlos)
+
+🆘 *SUPORTE:*
+• \`suporte\` - Informações de suporte
+• \`/suporte "sua mensagem"\` - Falar com atendente
+
+📞 *PRECISA DE AJUDA?*
+Envie o comprovante de pagamento ou digite um dos comandos acima.
+
+💡 *DICA:* Envie comprovantes legíveis para aprovação rápida!`;
+
+    if (isUnknownCommand) {
+        await chat.sendMessage(`❌ *Comando não reconhecido*\n\n${helpMessage}`);
+    } else {
+        await chat.sendMessage(helpMessage);
+    }
+}
+
 // ========== PROCESSAMENTO DE MENSAGENS ==========
 client.on('message', async (message) => {
     try {
@@ -814,6 +843,12 @@ client.on('message', async (message) => {
             // Comando suporte
             if (messageLower === 'suporte' || messageLower === '!suporte' || messageLower === '/suporte') {
                 await sendSupportInfo(chat);
+                return;
+            }
+
+            // Comando ajuda
+            if (messageLower === 'ajuda' || messageLower === 'help' || messageLower === 'comandos' || messageLower === '?') {
+                await sendHelpMessage(chat);
                 return;
             }
 
@@ -936,11 +971,20 @@ Envie o *COMPROVANTE* de pagamento (foto ou texto) para finalizar a compra.
                 return;
             }
 
-            // Comando não reconhecido - mostrar instruções
+            // Comando não reconhecido - mostrar ajuda inteligente
             if (messageBody && !messageLower.startsWith('!') && !messageLower.startsWith('/')) {
-                await sendPurchaseInstructions(chat);
+                // Verifica se não é número de ebook nem comprovante
+                const ebookNumber = parseInt(messageBody);
+                const activeEbooks = getActiveEbooks();
+                const isEbookNumber = activeEbooks.find(ebook => ebook.id === ebookNumber);
+                const paymentDetection = detectPaymentMethod(messageBody);
+                const hasMedia = message.hasMedia;
+                
+                // Só mostra ajuda se realmente for comando desconhecido
+                if (!isEbookNumber && !paymentDetection.valid && !hasMedia) {
+                    await sendHelpMessage(chat, true);
+                }
             }
-        }
 
         // 👨‍💼 COMPORTAMENTO PARA ADMIN
         if (isAdminBotChat) {
@@ -1669,6 +1713,7 @@ process.on('SIGINT', async () => {
     console.log('✅ Bot encerrado com sucesso!');
     process.exit(0);
 });
+
 
 
 
