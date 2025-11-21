@@ -1484,6 +1484,7 @@ Ebooks ativos: ${getActiveEbooks().length}`;
     } catch (error) {
         console.error('❌ Erro ao processar mensagem:', error);
         
+        // Tentar enviar mensagem de erro genérica
         try {
             if (!message.fromMe) {
                 await message.reply(`❌ Ocorreu um erro interno. Tente novamente.\n📧 Suporte: ${CONFIG.SUPPORT_EMAIL}`);
@@ -1713,6 +1714,7 @@ process.on('SIGINT', async () => {
     console.log('✅ Bot encerrado com sucesso!');
     process.exit(0);
 });
+
 
 
 
