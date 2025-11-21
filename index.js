@@ -1388,8 +1388,8 @@ Ebooks ativos: ${getActiveEbooks().length}`;
     // Comando não reconhecido para admin
     if (messageBody.startsWith('!') || messageBody.startsWith('/')) {
         await message.reply(`❌ Comando não reconhecido.\nUse /help para ver todos os comandos.`);
+        }
     }
-}
 
     } catch (error) {
         console.error('❌ Erro ao processar mensagem:', error);
@@ -1624,6 +1624,7 @@ process.on('SIGINT', async () => {
     console.log('✅ Bot encerrado com sucesso!');
     process.exit(0);
 });
+
 
 
 
