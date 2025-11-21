@@ -973,7 +973,7 @@ Envie o *COMPROVANTE* de pagamento (foto ou texto) para finalizar a compra.
 
                 return;
             }
-
+            
             // Comando não reconhecido - mostrar ajuda inteligente
             if (messageBody && !messageLower.startsWith('!') && !messageLower.startsWith('/')) {
                 // Verifica se não é número de ebook nem comprovante
@@ -1178,7 +1178,213 @@ Ebooks ativos: ${getActiveEbooks().length}`;
         await message.reply(helpMessage);
         return;
     }
+        // ========== COMANDOS DE RELATÓRIOS AVANÇADOS ==========
+    
+    if (messageLower === '/status' || messageLower === 'status' || messageLower === '/relatorio') {
+        const report = getSalesReport();
+        let statusMessage = `📊 *RELATÓRIO AVANÇADO DO SISTEMA*
 
+📦 *PEDIDOS:*
+• Total: ${report.totalOrders}
+• Pendentes: ${report.pendingOrders}
+• Aprovados: ${report.approvedOrders}
+• Recusados: ${report.rejectedOrders}
+• Taxa de conversão: ${report.conversionRate}%
+
+💰 *RECEITAS:*
+• Hoje: ${report.todaySales} vendas (${report.todayRevenue} MZN)
+• Semana: ${report.weekSales} vendas (${report.weekRevenue} MZN)
+• Mês: ${report.monthSales} vendas (${report.monthRevenue} MZN)
+• Total: ${report.totalRevenue} MZN
+• Ticket médio: ${report.averageOrderValue} MZN
+
+📱 *MÉTODOS DE PAGAMENTO:*
+• M-PESA: ${report.mpesaCount} vendas
+• E-mola: ${report.emolaCount} vendas
+
+📚 *EBOOKS MAIS VENDIDOS:*\n`;
+
+        if (report.topEbooks.length > 0) {
+            report.topEbooks.forEach(([ebookId, data], index) => {
+                statusMessage += `${index + 1}º ${data.name}: ${data.count} vendas (${data.revenue} MZN)\n`;
+            });
+        } else {
+            statusMessage += `Nenhuma venda registrada ainda\n`;
+        }
+
+        statusMessage += `\n🤖 *SISTEMA:*
+• Ebooks ativos: ${getActiveEbooks().length}
+• Total ebooks: ${ebooks.length}
+• Bot: ${CONFIG.BOT_NUMBER}
+• Online: ✅ Conectado`;
+
+        await message.reply(statusMessage);
+        return;
+    }
+
+    // Relatório detalhado
+    if (messageLower === '/relatorio_detalhado' || messageLower === 'relatorio detalhado') {
+        const report = getSalesReport();
+        let detailedReport = `📈 *RELATÓRIO DETALHADO DE VENDAS*
+
+🕒 *PERÍODO ATUAL:*
+• Hoje: ${report.todaySales} vendas | ${report.todayRevenue} MZN
+• Últimos 7 dias: ${report.weekSales} vendas | ${report.weekRevenue} MZN  
+• Últimos 30 dias: ${report.monthSales} vendas | ${report.monthRevenue} MZN
+
+📊 *DESEMPENHO:*
+• Total de pedidos: ${report.totalOrders}
+• Taxa de aprovação: ${report.conversionRate}%
+• Valor médio por pedido: ${report.averageOrderValue} MZN
+• Receita total: ${report.totalRevenue} MZN
+
+💳 *PREFERÊNCIAS DE PAGAMENTO:*
+• M-PESA: ${report.mpesaCount} transações (${report.mpesaCount > 0 ? Math.round(report.mpesaCount/report.approvedOrders*100) : 0}%)
+• E-mola: ${report.emolaCount} transações (${report.emolaCount > 0 ? Math.round(report.emolaCount/report.approvedOrders*100) : 0}%)
+
+🏆 *TOP 5 EBOOKS:*\n`;
+
+        if (report.topEbooks.length > 0) {
+            report.topEbooks.forEach(([ebookId, data], index) => {
+                const percentage = report.approvedOrders > 0 ? Math.round(data.count/report.approvedOrders*100) : 0;
+                detailedReport += `\n${index + 1}º ${data.name}\n`;
+                detailedReport += `   📊 ${data.count} vendas (${percentage}%)\n`;
+                detailedReport += `   💰 ${data.revenue} MZN\n`;
+            });
+        } else {
+            detailedReport += `\n📭 Nenhuma venda registrada\n`;
+        }
+
+        detailedReport += `\n📋 *STATUS ATUAL:*
+• Pedidos pendentes: ${report.pendingOrders}
+• Ebooks disponíveis: ${getActiveEbooks().length}
+• Sistema: ✅ Operacional`;
+
+        await message.reply(detailedReport);
+        return;
+    }
+
+    // ========== COMANDOS DE SISTEMA ==========
+
+    // Limpar pedidos
+    if (messageLower === '/limpar' || messageLower === 'limpar') {
+        const oldCount = orders.length;
+        // Manter apenas pedidos dos últimos 30 dias
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - 30);
+        
+        orders = orders.filter(order => new Date(order.createdAt) > cutoffDate);
+        saveOrders();
+
+        await message.reply(`🧹 *PEDIDOS LIMPOS!*\n\nRemovidos ${oldCount - orders.length} pedidos antigos.\nRestantes: ${orders.length} pedidos.`);
+        return;
+    }
+
+    // Resetar sistema de pedidos
+    if (messageLower.startsWith('/reset')) {
+        const parts = messageBody.split(' ');
+        const confirmation = parts[1];
+        
+        if (!confirmation) {
+            const stats = getSalesReport();
+            await message.reply(`🔄 *RESET DO SISTEMA DE PEDIDOS*
+            
+⚠️ *ATENÇÃO: Esta ação é irreversível!*
+
+📊 *ESTATÍSTICAS ATUAIS:*
+• Total de pedidos: ${stats.totalOrders}
+• Pedidos pendentes: ${stats.pendingOrders}
+• Pedidos aprovados: ${stats.approvedOrders}
+• Pedidos recusados: ${stats.rejectedOrders}
+
+💾 *O QUE SERÁ FEITO:*
+✓ Todos os pedidos serão zerados
+✓ Contador reiniciado para #1
+✓ Backup automático criado
+✓ Log registrado
+
+❌ *O QUE SERÁ PERDIDO:*
+✗ Histórico de pedidos atual
+✗ Estatísticas acumuladas
+
+✅ *PARA CONFIRMAR O RESET, DIGITE:*
+\`/reset confirmar\`
+
+📝 *Últimos resets:* ${getLogStats().totalResets} vezes`);
+            return;
+        }
+
+        if (confirmation === 'confirmar') {
+            const backupData = resetOrderSystem();
+            
+            await message.reply(`✅ *SISTEMA DE PEDIDOS RESETADO!*
+
+📊 *BACKUP CRIADO:*
+• Pedidos antes: ${backupData.totalOrdersBefore}
+• Pendentes: ${backupData.pendingOrdersBefore}
+• Aprovados: ${backupData.approvedOrdersBefore}
+• Recusados: ${backupData.rejectedOrdersBefore}
+
+🔄 *SISTEMA ATUAL:*
+• Pedidos totais: 0
+• Próximo ID: #1
+• Status: ✅ Reiniciado
+
+📝 *Log registrado no sistema*`);
+
+            console.log(`🔄 Sistema resetado por admin. Backup: ${backupData.totalOrdersBefore} pedidos`);
+            return;
+        } else {
+            await message.reply(`❌ Comando inválido. Use \`/reset confirmar\` para resetar o sistema.`);
+        }
+    }
+
+    // Ver logs do sistema
+    if (messageLower === '/logs' || messageLower === 'logs') {
+        const logStats = getLogStats();
+        const logs = loadLogs();
+        
+        let logsMessage = `📝 *LOGS DO SISTEMA - Últimas 24h*\n\n`;
+        
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const recentLogs = logs.filter(log => new Date(log.timestamp) > oneDayAgo);
+        
+        if (recentLogs.length === 0) {
+            logsMessage += `📭 Nenhuma atividade nas últimas 24 horas\n`;
+        } else {
+            recentLogs.slice(-10).reverse().forEach(log => {
+                const time = new Date(log.timestamp).toLocaleString('pt-BR');
+                logsMessage += `⏰ ${time}\n`;
+                logsMessage += `📋 ${log.action}\n`;
+                
+                if (log.action === 'RESET_SYSTEM') {
+                    logsMessage += `📊 ${log.details.totalOrdersBefore} → 0 pedidos\n`;
+                }
+                
+                logsMessage += `━━━━━━━━━━━━━━━━━━━━\n`;
+            });
+        }
+        
+        logsMessage += `\n📈 *ESTATÍSTICAS GERAIS:*
+• Total de logs: ${logStats.totalLogs}
+• Resets realizados: ${logStats.totalResets}
+• Último reset: ${new Date(logStats.lastReset).toLocaleString('pt-BR') || 'Nunca'}`;
+
+        await message.reply(logsMessage);
+        return;
+    }
+
+    // ========== COMANDOS DE EBOOKS ==========
+    // ... (seus comandos de ebooks existentes) ...
+
+    // Comando não reconhecido para admin
+    if (messageBody.startsWith('!') || messageBody.startsWith('/')) {
+        await message.reply(`❌ Comando não reconhecido.\nUse /help para ver todos os comandos.`);
+    }
+}
+
+
+            
     // Comando não reconhecido para admin
     if (messageBody.startsWith('!') || messageBody.startsWith('/')) {
         await message.reply(`❌ Comando não reconhecido.\nUse /help para ver todos os comandos.`);
@@ -1418,6 +1624,7 @@ process.on('SIGINT', async () => {
     console.log('✅ Bot encerrado com sucesso!');
     process.exit(0);
 });
+
 
 
 
