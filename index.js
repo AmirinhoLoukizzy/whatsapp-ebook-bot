@@ -6,7 +6,7 @@ const path = require('path');
 
 // Configuração para Render
 if (process.env.NODE_ENV === 'production') {
-    process.env.CHROMIUM_PATH = '/usr/bin/chromium-browser';
+    console.log('🔧 Ambiente de produção detectado');
 }
 
 // ========== SISTEMA DE CONTROLE DE NOVOS CHATS ==========
@@ -510,7 +510,7 @@ const client = new Client({
             '--disable-renderer-backgrounding',
             '--window-size=1920,1080'
         ],
-        executablePath: process.env.CHROMIUM_PATH || undefined
+        
     }
 });
 
@@ -1670,6 +1670,7 @@ process.on('SIGINT', async () => {
     console.log('✅ Bot encerrado com sucesso!');
     process.exit(0);
 });
+
 
 
 
