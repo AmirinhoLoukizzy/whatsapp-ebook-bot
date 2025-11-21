@@ -416,6 +416,9 @@ console.log('━━━━━━━━━━━━━━━━━━━━━━�
 loadEbooks();
 loadOrders();
 
+// Solução de emergência - pular verificação do browser
+process.env.DISABLE_AUTO_UPDATE = 'true';
+
 const client = new Client({
     authStrategy: new LocalAuth({
         clientId: "ebook-bot-mz"
@@ -1411,6 +1414,7 @@ process.on('SIGINT', async () => {
     process.exit(0);
 
 });
+
 
 
 
