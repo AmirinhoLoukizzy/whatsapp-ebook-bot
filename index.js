@@ -973,7 +973,7 @@ Envie o *COMPROVANTE* de pagamento (foto ou texto) para finalizar a compra.
 
                 return;
             }
-            
+
             // Comando não reconhecido - mostrar ajuda inteligente
             if (messageBody && !messageLower.startsWith('!') && !messageLower.startsWith('/')) {
                 // Verifica se não é número de ebook nem comprovante
@@ -992,197 +992,115 @@ Envie o *COMPROVANTE* de pagamento (foto ou texto) para finalizar a compra.
 
         // 👨‍💼 COMPORTAMENTO PARA ADMIN
         if (isAdminBotChat) {
-    console.log(`✅ ADMIN DETECTADO: ${customerName}`);
-    console.log(`📞 Número do admin: ${message.from}`);
-    console.log(`🎯 Comando recebido: ${messageBody}`);
-    console.log(`🔍 Comparando: ${message.from} === ${ADMIN_NUMBER_FORMATTED}`);
-    
-    // ========== COMANDOS DE PEDIDOS ==========
-    
-    // Listar pedidos
-    if (messageLower === '/pedidos' || messageLower === 'pedidos') {
-        const pendingOrders = getPendingOrders();
-        
-        if (pendingOrders.length === 0) {
-            await message.reply('📋 *PEDIDOS*\n\n🎉 Nenhum pedido pendente!');
-            return;
-        }
-
-        let ordersList = `📋 *PEDIDOS PENDENTES: ${pendingOrders.length}*\n\n`;
-        pendingOrders.forEach((order, index) => {
-            if (index < 10) {
-                const methodIcon = order.paymentMethod === 'M-PESA' ? '📱' : 
-                                 order.paymentMethod === 'E-MOLA' ? '💰' : '📄';
+            console.log(`✅ ADMIN DETECTADO: ${customerName}`);
+            console.log(`📞 Número do admin: ${message.from}`);
+            console.log(`🎯 Comando recebido: ${messageBody}`);
+            
+            // ========== COMANDOS DE PEDIDOS ==========
+            
+            // Listar pedidos
+            if (messageLower === '/pedidos' || messageLower === 'pedidos') {
+                const pendingOrders = getPendingOrders();
                 
-                ordersList += `${methodIcon} *Pedido #${order.id}*\n`;
-                ordersList += `👤 ${order.customerName}\n`;
-                ordersList += `📞 ${order.customerNumber.replace('@c.us', '')}\n`;
-                ordersList += `📚 ${order.ebookName}\n`;
-                ordersList += `💎 ${order.price} MZN\n`;
-                ordersList += `📱 ${order.paymentMethod}\n`;
-                ordersList += `⏰ ${new Date(order.createdAt).toLocaleString('pt-BR')}\n`;
-                ordersList += `✅ *aprovar ${order.id}* | ❌ *recusar ${order.id}*\n`;
-                ordersList += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+                if (pendingOrders.length === 0) {
+                    await message.reply('📋 *PEDIDOS*\n\n🎉 Nenhum pedido pendente!');
+                    return;
+                }
+
+                let ordersList = `📋 *PEDIDOS PENDENTES: ${pendingOrders.length}*\n\n`;
+                pendingOrders.forEach((order, index) => {
+                    if (index < 10) {
+                        const methodIcon = order.paymentMethod === 'M-PESA' ? '📱' : 
+                                         order.paymentMethod === 'E-MOLA' ? '💰' : '📄';
+                        
+                        ordersList += `${methodIcon} *Pedido #${order.id}*\n`;
+                        ordersList += `👤 ${order.customerName}\n`;
+                        ordersList += `📞 ${order.customerNumber.replace('@c.us', '')}\n`;
+                        ordersList += `📚 ${order.ebookName}\n`;
+                        ordersList += `💎 ${order.price} MZN\n`;
+                        ordersList += `📱 ${order.paymentMethod}\n`;
+                        ordersList += `⏰ ${new Date(order.createdAt).toLocaleString('pt-BR')}\n`;
+                        ordersList += `✅ *aprovar ${order.id}* | ❌ *recusar ${order.id}*\n`;
+                        ordersList += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+                    }
+                });
+
+                if (pendingOrders.length > 10) {
+                    ordersList += `📄 Mostrando 10 de ${pendingOrders.length} pedidos\n`;
+                }
+
+                await message.reply(ordersList);
+                return;
             }
-        });
 
-        if (pendingOrders.length > 10) {
-            ordersList += `📄 Mostrando 10 de ${pendingOrders.length} pedidos\n`;
-        }
+            // Aprovar pedido
+            if (messageLower.startsWith('aprovar ')) {
+                const orderId = messageLower.split(' ')[1];
+                const order = findOrder(orderId);
 
-        await message.reply(ordersList);
-        return;
-    }
+                if (!order) {
+                    await message.reply(`❌ Pedido #${orderId} não encontrado.`);
+                    return;
+                }
 
-    // Aprovar pedido
-    if (messageLower.startsWith('aprovar ')) {
-        const orderId = messageLower.split(' ')[1];
-        const order = findOrder(orderId);
+                if (order.status !== 'aguardando_aprovacao') {
+                    await message.reply(`❌ Pedido #${orderId} já foi processado.`);
+                    return;
+                }
 
-        if (!order) {
-            await message.reply(`❌ Pedido #${orderId} não encontrado.`);
-            return;
-        }
+                order.status = 'aprovado';
+                order.approvedAt = new Date().toISOString();
+                saveOrders();
 
-        if (order.status !== 'aguardando_aprovacao') {
-            await message.reply(`❌ Pedido #${orderId} já foi processado.`);
-            return;
-        }
+                removePendingCustomer(order.customerNumber);
 
-        order.status = 'aprovado';
-        order.approvedAt = new Date().toISOString();
-        saveOrders();
+                const success = await sendEbook(order.customerNumber, order.ebookId);
 
-        removePendingCustomer(order.customerNumber);
+                if (success) {
+                    await message.reply(`✅ *PEDIDO #${orderId} APROVADO!*\n\n📤 Ebook enviado para: ${order.customerName}\n📚 ${order.ebookName}\n💎 ${order.price} MZN\n📱 ${order.paymentMethod}`);
+                    console.log(`✅ Pedido #${orderId} aprovado`);
+                } else {
+                    await message.reply(`⚠️ *PEDIDO #${orderId} APROVADO* mas houve erro no envio.\n\n📧 Cliente notificado para contatar suporte.`);
+                }
 
-        const success = await sendEbook(order.customerNumber, order.ebookId);
+                return;
+            }
+            
+            // Recusar pedido
+            if (messageLower.startsWith('recusar ')) {
+                const orderId = messageLower.split(' ')[1];
+                const order = findOrder(orderId);
 
-        if (success) {
-            await message.reply(`✅ *PEDIDO #${orderId} APROVADO!*\n\n📤 Ebook enviado para: ${order.customerName}\n📚 ${order.ebookName}\n💎 ${order.price} MZN\n📱 ${order.paymentMethod}`);
-            console.log(`✅ Pedido #${orderId} aprovado`);
-        } else {
-            await message.reply(`⚠️ *PEDIDO #${orderId} APROVADO* mas houve erro no envio.\n\n📧 Cliente notificado para contatar suporte.`);
-        }
+                if (!order) {
+                    await message.reply(`❌ Pedido #${orderId} não encontrado.`);
+                    return;
+                }
 
-        return;
-    }
-    
-    // Recusar pedido
-    if (messageLower.startsWith('recusar ')) {
-        const orderId = messageLower.split(' ')[1];
-        const order = findOrder(orderId);
+                if (order.status !== 'aguardando_aprovacao') {
+                    await message.reply(`❌ Pedido #${orderId} já foi processado.`);
+                    return;
+                }
 
-        if (!order) {
-            await message.reply(`❌ Pedido #${orderId} não encontrado.`);
-            return;
-        }
+                order.status = 'recusado';
+                order.rejectedAt = new Date().toISOString();
+                saveOrders();
 
-        if (order.status !== 'aguardando_aprovacao') {
-            await message.reply(`❌ Pedido #${orderId} já foi processado.`);
-            return;
-        }
+                removePendingCustomer(order.customerNumber);
 
-        order.status = 'recusado';
-        order.rejectedAt = new Date().toISOString();
-        saveOrders();
+                await client.sendMessage(order.customerNumber, 
+                    `❌ *PEDIDO #${orderId} RECUSADO!*\n\nSua transação não foi aprovada pelo nosso sistema de validação.\n\n📧 Entre em contato com nosso suporte para mais informações:\n${CONFIG.SUPPORT_EMAIL}`);
 
-        removePendingCustomer(order.customerNumber);
+                await message.reply(`❌ *PEDIDO #${orderId} RECUSADO!*\n\n👤 Cliente: ${order.customerName}\n📚 Produto: ${order.ebookName}\n📱 Método: ${order.paymentMethod}\n📞 Cliente notificado.`);
 
-        await client.sendMessage(order.customerNumber, 
-            `❌ *PEDIDO #${orderId} RECUSADO!*\n\nSua transação não foi aprovada pelo nosso sistema de validação.\n\n📧 Entre em contato com nosso suporte para mais informações:\n${CONFIG.SUPPORT_EMAIL}`);
+                console.log(`❌ Pedido #${orderId} recusado`);
+                return;
+            }
 
-        await message.reply(`❌ *PEDIDO #${orderId} RECUSADO!*\n\n👤 Cliente: ${order.customerName}\n📚 Produto: ${order.ebookName}\n📱 Método: ${order.paymentMethod}\n📞 Cliente notificado.`);
-
-        console.log(`❌ Pedido #${orderId} recusado`);
-        return;
-    }
-
-    // ========== COMANDOS DE RELATÓRIOS ==========
-    
-    if (messageLower === '/status' || messageLower === 'status' || messageLower === '/relatorio') {
-        const report = getSalesReport();
-        let statusMessage = `📊 *RELATÓRIO DO SISTEMA*
-
-📦 *PEDIDOS:*
-• Total: ${report.totalOrders}
-• Pendentes: ${report.pendingOrders}
-• Aprovados: ${report.approvedOrders}
-• Recusados: ${report.rejectedOrders}
-
-💰 *HOJE ${new Date().toLocaleDateString('pt-BR')}:*
-• Vendas: ${report.todaySales}
-• Receita: ${report.todayRevenue} MZN
-• M-PESA: ${report.mpesaCount}
-• E-mola: ${report.emolaCount}
-
-📚 *CATÁLOGO:*
-• Ebooks ativos: ${getActiveEbooks().length}
-• Total ebooks: ${ebooks.length}
-
-🤖 *SISTEMA:*
-• Bot: ${CONFIG.BOT_NUMBER}
-• Online: ✅ Conectado`;
-
-        await message.reply(statusMessage);
-        return;
-    }
-
-    // ========== COMANDOS DE EBOOKS ==========
-    
-    // Listar ebooks
-    if (messageLower === '/listar_ebooks' || messageLower === 'listar ebooks') {
-        if (ebooks.length === 0) {
-            await message.reply('📚 *EBOOKS*\n\nNenhum ebook cadastrado.');
-            return;
-        }
-
-        let ebooksList = `📚 *CATÁLOGO DE EBOOKS: ${ebooks.length}*\n\n`;
-        ebooks.forEach(ebook => {
-            ebooksList += `🆔 *${ebook.id}* - ${ebook.name}\n`;
-            ebooksList += `💎 ${ebook.price} MZN | ${ebook.active ? '✅ Ativo' : '❌ Inativo'}\n`;
-            ebooksList += `📁 ${ebook.filename}\n`;
-            ebooksList += `⏰ ${new Date(ebook.createdAt).toLocaleDateString('pt-BR')}\n`;
-            ebooksList += `━━━━━━━━━━━━━━━━━━━━\n\n`;
-        });
-
-        ebooksList += `💡 *COMANDOS EBOOKS:*\n`;
-        ebooksList += `/adicionar_ebook [NOME] [PREÇO]\n`;
-        ebooksList += `/editar_ebook [ID] [NOVO_PREÇO]\n`;
-        ebooksList += `/remover_ebook [ID]\n`;
-
-        await message.reply(ebooksList);
-        return;
-    }
-
-    // Ajuda admin
-    if (messageLower === '/help' || messageLower === 'help' || messageLower === 'ajuda') {
-        const helpMessage = `🤖 *COMANDOS DO ADMIN*
-
-📦 *PEDIDOS:*
-/pedidos - Listar pedidos pendentes
-aprovar [ID] - Aprovar pedido
-recusar [ID] - Recusar pedido
-/status - Relatório do sistema
-
-📚 *EBOOKS:*
-/listar_ebooks - Listar todos ebooks
-/adicionar_ebook "[NOME]" [PREÇO] - Adicionar ebook
-/editar_ebook [ID] [PREÇO] - Editar preço
-/remover_ebook [ID] - Remover ebook
-
-📊 *ESTATÍSTICAS:*
-Pedidos pendentes: ${getPendingOrders().length}
-Total ebooks: ${ebooks.length}
-Ebooks ativos: ${getActiveEbooks().length}`;
-
-        await message.reply(helpMessage);
-        return;
-    }
-        // ========== COMANDOS DE RELATÓRIOS AVANÇADOS ==========
-    
-    if (messageLower === '/status' || messageLower === 'status' || messageLower === '/relatorio') {
-        const report = getSalesReport();
-        let statusMessage = `📊 *RELATÓRIO AVANÇADO DO SISTEMA*
+            // ========== COMANDOS DE RELATÓRIOS AVANÇADOS ==========
+            
+            if (messageLower === '/status' || messageLower === 'status' || messageLower === '/relatorio') {
+                const report = getSalesReport();
+                let statusMessage = `📊 *RELATÓRIO AVANÇADO DO SISTEMA*
 
 📦 *PEDIDOS:*
 • Total: ${report.totalOrders}
@@ -1204,28 +1122,28 @@ Ebooks ativos: ${getActiveEbooks().length}`;
 
 📚 *EBOOKS MAIS VENDIDOS:*\n`;
 
-        if (report.topEbooks.length > 0) {
-            report.topEbooks.forEach(([ebookId, data], index) => {
-                statusMessage += `${index + 1}º ${data.name}: ${data.count} vendas (${data.revenue} MZN)\n`;
-            });
-        } else {
-            statusMessage += `Nenhuma venda registrada ainda\n`;
-        }
+                if (report.topEbooks.length > 0) {
+                    report.topEbooks.forEach(([ebookId, data], index) => {
+                        statusMessage += `${index + 1}º ${data.name}: ${data.count} vendas (${data.revenue} MZN)\n`;
+                    });
+                } else {
+                    statusMessage += `Nenhuma venda registrada ainda\n`;
+                }
 
-        statusMessage += `\n🤖 *SISTEMA:*
+                statusMessage += `\n🤖 *SISTEMA:*
 • Ebooks ativos: ${getActiveEbooks().length}
 • Total ebooks: ${ebooks.length}
 • Bot: ${CONFIG.BOT_NUMBER}
 • Online: ✅ Conectado`;
 
-        await message.reply(statusMessage);
-        return;
-    }
+                await message.reply(statusMessage);
+                return;
+            }
 
-    // Relatório detalhado
-    if (messageLower === '/relatorio_detalhado' || messageLower === 'relatorio detalhado') {
-        const report = getSalesReport();
-        let detailedReport = `📈 *RELATÓRIO DETALHADO DE VENDAS*
+            // Relatório detalhado
+            if (messageLower === '/relatorio_detalhado' || messageLower === 'relatorio detalhado') {
+                const report = getSalesReport();
+                let detailedReport = `📈 *RELATÓRIO DETALHADO DE VENDAS*
 
 🕒 *PERÍODO ATUAL:*
 • Hoje: ${report.todaySales} vendas | ${report.todayRevenue} MZN
@@ -1244,51 +1162,51 @@ Ebooks ativos: ${getActiveEbooks().length}`;
 
 🏆 *TOP 5 EBOOKS:*\n`;
 
-        if (report.topEbooks.length > 0) {
-            report.topEbooks.forEach(([ebookId, data], index) => {
-                const percentage = report.approvedOrders > 0 ? Math.round(data.count/report.approvedOrders*100) : 0;
-                detailedReport += `\n${index + 1}º ${data.name}\n`;
-                detailedReport += `   📊 ${data.count} vendas (${percentage}%)\n`;
-                detailedReport += `   💰 ${data.revenue} MZN\n`;
-            });
-        } else {
-            detailedReport += `\n📭 Nenhuma venda registrada\n`;
-        }
+                if (report.topEbooks.length > 0) {
+                    report.topEbooks.forEach(([ebookId, data], index) => {
+                        const percentage = report.approvedOrders > 0 ? Math.round(data.count/report.approvedOrders*100) : 0;
+                        detailedReport += `\n${index + 1}º ${data.name}\n`;
+                        detailedReport += `   📊 ${data.count} vendas (${percentage}%)\n`;
+                        detailedReport += `   💰 ${data.revenue} MZN\n`;
+                    });
+                } else {
+                    detailedReport += `\n📭 Nenhuma venda registrada\n`;
+                }
 
-        detailedReport += `\n📋 *STATUS ATUAL:*
+                detailedReport += `\n📋 *STATUS ATUAL:*
 • Pedidos pendentes: ${report.pendingOrders}
 • Ebooks disponíveis: ${getActiveEbooks().length}
 • Sistema: ✅ Operacional`;
 
-        await message.reply(detailedReport);
-        return;
-    }
+                await message.reply(detailedReport);
+                return;
+            }
 
-    // ========== COMANDOS DE SISTEMA ==========
+            // ========== COMANDOS DE SISTEMA ==========
 
-    // Limpar pedidos
-    if (messageLower === '/limpar' || messageLower === 'limpar') {
-        const oldCount = orders.length;
-        // Manter apenas pedidos dos últimos 30 dias
-        const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - 30);
-        
-        orders = orders.filter(order => new Date(order.createdAt) > cutoffDate);
-        saveOrders();
+            // Limpar pedidos
+            if (messageLower === '/limpar' || messageLower === 'limpar') {
+                const oldCount = orders.length;
+                // Manter apenas pedidos dos últimos 30 dias
+                const cutoffDate = new Date();
+                cutoffDate.setDate(cutoffDate.getDate() - 30);
+                
+                orders = orders.filter(order => new Date(order.createdAt) > cutoffDate);
+                saveOrders();
 
-        await message.reply(`🧹 *PEDIDOS LIMPOS!*\n\nRemovidos ${oldCount - orders.length} pedidos antigos.\nRestantes: ${orders.length} pedidos.`);
-        return;
-    }
+                await message.reply(`🧹 *PEDIDOS LIMPOS!*\n\nRemovidos ${oldCount - orders.length} pedidos antigos.\nRestantes: ${orders.length} pedidos.`);
+                return;
+            }
 
-    // Resetar sistema de pedidos
-    if (messageLower.startsWith('/reset')) {
-        const parts = messageBody.split(' ');
-        const confirmation = parts[1];
-        
-        if (!confirmation) {
-            const stats = getSalesReport();
-            await message.reply(`🔄 *RESET DO SISTEMA DE PEDIDOS*
-            
+            // Resetar sistema de pedidos
+            if (messageLower.startsWith('/reset')) {
+                const parts = messageBody.split(' ');
+                const confirmation = parts[1];
+                
+                if (!confirmation) {
+                    const stats = getSalesReport();
+                    await message.reply(`🔄 *RESET DO SISTEMA DE PEDIDOS*
+                    
 ⚠️ *ATENÇÃO: Esta ação é irreversível!*
 
 📊 *ESTATÍSTICAS ATUAIS:*
@@ -1311,13 +1229,13 @@ Ebooks ativos: ${getActiveEbooks().length}`;
 \`/reset confirmar\`
 
 📝 *Últimos resets:* ${getLogStats().totalResets} vezes`);
-            return;
-        }
+                    return;
+                }
 
-        if (confirmation === 'confirmar') {
-            const backupData = resetOrderSystem();
-            
-            await message.reply(`✅ *SISTEMA DE PEDIDOS RESETADO!*
+                if (confirmation === 'confirmar') {
+                    const backupData = resetOrderSystem();
+                    
+                    await message.reply(`✅ *SISTEMA DE PEDIDOS RESETADO!*
 
 📊 *BACKUP CRIADO:*
 • Pedidos antes: ${backupData.totalOrdersBefore}
@@ -1332,64 +1250,249 @@ Ebooks ativos: ${getActiveEbooks().length}`;
 
 📝 *Log registrado no sistema*`);
 
-            console.log(`🔄 Sistema resetado por admin. Backup: ${backupData.totalOrdersBefore} pedidos`);
-            return;
-        } else {
-            await message.reply(`❌ Comando inválido. Use \`/reset confirmar\` para resetar o sistema.`);
-        }
-    }
+                    console.log(`🔄 Sistema resetado por admin. Backup: ${backupData.totalOrdersBefore} pedidos`);
+                    return;
+                } else {
+                    await message.reply(`❌ Comando inválido. Use \`/reset confirmar\` para resetar o sistema.`);
+                }
+            }
 
-    // Ver logs do sistema
-    if (messageLower === '/logs' || messageLower === 'logs') {
-        const logStats = getLogStats();
-        const logs = loadLogs();
-        
-        let logsMessage = `📝 *LOGS DO SISTEMA - Últimas 24h*\n\n`;
-        
-        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        const recentLogs = logs.filter(log => new Date(log.timestamp) > oneDayAgo);
-        
-        if (recentLogs.length === 0) {
-            logsMessage += `📭 Nenhuma atividade nas últimas 24 horas\n`;
-        } else {
-            recentLogs.slice(-10).reverse().forEach(log => {
-                const time = new Date(log.timestamp).toLocaleString('pt-BR');
-                logsMessage += `⏰ ${time}\n`;
-                logsMessage += `📋 ${log.action}\n`;
+            // Ver logs do sistema
+            if (messageLower === '/logs' || messageLower === 'logs') {
+                const logStats = getLogStats();
+                const logs = loadLogs();
                 
-                if (log.action === 'RESET_SYSTEM') {
-                    logsMessage += `📊 ${log.details.totalOrdersBefore} → 0 pedidos\n`;
+                let logsMessage = `📝 *LOGS DO SISTEMA - Últimas 24h*\n\n`;
+                
+                const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                const recentLogs = logs.filter(log => new Date(log.timestamp) > oneDayAgo);
+                
+                if (recentLogs.length === 0) {
+                    logsMessage += `📭 Nenhuma atividade nas últimas 24 horas\n`;
+                } else {
+                    recentLogs.slice(-10).reverse().forEach(log => {
+                        const time = new Date(log.timestamp).toLocaleString('pt-BR');
+                        logsMessage += `⏰ ${time}\n`;
+                        logsMessage += `📋 ${log.action}\n`;
+                        
+                        if (log.action === 'RESET_SYSTEM') {
+                            logsMessage += `📊 ${log.details.totalOrdersBefore} → 0 pedidos\n`;
+                        }
+                        
+                        logsMessage += `━━━━━━━━━━━━━━━━━━━━\n`;
+                    });
                 }
                 
-                logsMessage += `━━━━━━━━━━━━━━━━━━━━\n`;
-            });
-        }
-        
-        logsMessage += `\n📈 *ESTATÍSTICAS GERAIS:*
+                logsMessage += `\n📈 *ESTATÍSTICAS GERAIS:*
 • Total de logs: ${logStats.totalLogs}
 • Resets realizados: ${logStats.totalResets}
 • Último reset: ${new Date(logStats.lastReset).toLocaleString('pt-BR') || 'Nunca'}`;
 
-        await message.reply(logsMessage);
-        return;
-    }
+                await message.reply(logsMessage);
+                return;
+            }
 
-    // ========== COMANDOS DE EBOOKS ==========
-    // ... (seus comandos de ebooks existentes) ...
-
-    // Comando não reconhecido para admin
-    if (messageBody.startsWith('!') || messageBody.startsWith('/')) {
-        await message.reply(`❌ Comando não reconhecido.\nUse /help para ver todos os comandos.`);
-    }
-}
-
-
+            // ========== COMANDOS DE EBOOKS ==========
             
-    // Comando não reconhecido para admin
-    if (messageBody.startsWith('!') || messageBody.startsWith('/')) {
-        await message.reply(`❌ Comando não reconhecido.\nUse /help para ver todos os comandos.`);
+            // Listar ebooks
+            if (messageLower === '/listar_ebooks' || messageLower === 'listar ebooks') {
+                if (ebooks.length === 0) {
+                    await message.reply('📚 *EBOOKS*\n\nNenhum ebook cadastrado.');
+                    return;
+                }
+
+                let ebooksList = `📚 *CATÁLOGO DE EBOOKS: ${ebooks.length}*\n\n`;
+                ebooks.forEach(ebook => {
+                    ebooksList += `🆔 *${ebook.id}* - ${ebook.name}\n`;
+                    ebooksList += `💎 ${ebook.price} MZN | ${ebook.active ? '✅ Ativo' : '❌ Inativo'}\n`;
+                    ebooksList += `📁 ${ebook.filename}\n`;
+                    ebooksList += `⏰ ${new Date(ebook.createdAt).toLocaleDateString('pt-BR')}\n`;
+                    ebooksList += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+                });
+
+                ebooksList += `💡 *COMANDOS EBOOKS:*\n`;
+                ebooksList += `/adicionar_ebook [NOME] [PREÇO]\n`;
+                ebooksList += `/editar_ebook [ID] [NOVO_PREÇO]\n`;
+                ebooksList += `/remover_ebook [ID]\n`;
+
+                await message.reply(ebooksList);
+                return;
+            }
+
+            // Adicionar ebook
+            if (messageLower.startsWith('/adicionar_ebook ')) {
+                const parts = messageBody.split(' ');
+                if (parts.length < 3) {
+                    await message.reply(`❌ Uso correto:\n/adicionar_ebook "[NOME]" [PREÇO]\n\nExemplo:\n/adicionar_ebook "Marketing Digital" 150`);
+                    return;
+                }
+
+                // Extrair nome (pode ter espaços)
+                const price = parseInt(parts[parts.length - 1]);
+                const name = messageBody.replace('/adicionar_ebook ', '').replace(price.toString(), '').trim().replace(/"/g, '');
+
+                if (!name || isNaN(price) || price <= 0) {
+                    await message.reply('❌ Nome e preço devem ser válidos. Preço deve ser maior que 0.');
+                    return;
+                }
+
+                const newEbook = {
+                    id: ebookCounter++,
+                    name: name,
+                    price: price,
+                    filename: `ebook${ebookCounter - 1}.pdf`,
+                    active: true,
+                    createdAt: new Date().toISOString(),
+                    salesCount: 0
+                };
+
+                // Armazenar temporariamente para aguardar arquivo
+                message.pendingEbook = newEbook;
+
+                await message.reply(`📚 *NOVO EBOOK CONFIGURADO*
+
+🏷️ *Nome:* ${newEbook.name}
+💎 *Preço:* ${newEbook.price} MZN
+🆔 *ID:* ${newEbook.id}
+
+📎 *Agora envie o arquivo PDF* para completar o cadastro.`);
+                return;
+            }
+
+            // Processar envio de PDF para novo ebook
+            if (message.pendingEbook && message.hasMedia) {
+                const pendingEbook = message.pendingEbook;
+                const media = await message.downloadMedia();
+
+                if (media.mimetype !== 'application/pdf') {
+                    await message.reply('❌ Por favor, envie um arquivo PDF válido.');
+                    return;
+                }
+
+                // Salvar arquivo PDF
+                const filePath = path.join(ebooksDir, pendingEbook.filename);
+                fs.writeFileSync(filePath, media.data, 'base64');
+
+                // Adicionar ebook à lista
+                ebooks.push(pendingEbook);
+                saveEbooks();
+
+                await message.reply(`✅ *EBOOK ADICIONADO COM SUCESSO!*
+
+🏷️ *Nome:* ${pendingEbook.name}
+💎 *Preço:* ${pendingEbook.price} MZN
+🆔 *ID:* ${pendingEbook.id}
+📁 *Arquivo:* ${pendingEbook.filename}
+
+📚 Ebook disponível para venda!`);
+                
+                // Limpar pending ebook
+                message.pendingEbook = null;
+                return;
+            }
+
+            // Editar ebook
+            if (messageLower.startsWith('/editar_ebook ')) {
+                const parts = messageBody.split(' ');
+                if (parts.length < 3) {
+                    await message.reply('❌ Uso: /editar_ebook [ID] [NOVO_PREÇO]');
+                    return;
+                }
+
+                const ebookId = parseInt(parts[1]);
+                const newPrice = parseInt(parts[2]);
+                const ebook = getEbookById(ebookId);
+
+                if (!ebook) {
+                    await message.reply(`❌ Ebook ID ${ebookId} não encontrado.`);
+                    return;
+                }
+
+                if (isNaN(newPrice) || newPrice <= 0) {
+                    await message.reply('❌ Preço deve ser um número maior que 0.');
+                    return;
+                }
+
+                const oldPrice = ebook.price;
+                ebook.price = newPrice;
+                saveEbooks();
+
+                await message.reply(`✅ *EBOOK ATUALIZADO!*
+
+🏷️ *Nome:* ${ebook.name}
+💎 *Preço:* ${oldPrice} MZN → ${newPrice} MZN
+🆔 *ID:* ${ebook.id}`);
+
+                return;
+            }
+
+            // Remover ebook
+            if (messageLower.startsWith('/remover_ebook ')) {
+                const ebookId = parseInt(messageLower.split(' ')[2]);
+                const ebook = getEbookById(ebookId);
+
+                if (!ebook) {
+                    await message.reply(`❌ Ebook ID ${ebookId} não encontrado.`);
+                    return;
+                }
+
+                // Marcar como inativo em vez de remover
+                ebook.active = false;
+                saveEbooks();
+
+                await message.reply(`✅ *EBOOK DESATIVADO!*
+
+🏷️ *Nome:* ${ebook.name}
+💎 *Preço:* ${ebook.price} MZN
+🆔 *ID:* ${ebook.id}
+
+⚠️ O ebook não aparecerá mais no catálogo, mas pedidos existentes serão mantidos.`);
+
+                return;
+            }
+
+            // Ajuda admin
+            if (messageLower === '/help' || messageLower === 'help' || messageLower === 'ajuda') {
+                const helpMessage = `🤖 *COMANDOS DO ADMIN*
+
+📦 *PEDIDOS:*
+/pedidos - Listar pedidos pendentes
+aprovar [ID] - Aprovar pedido
+recusar [ID] - Recusar pedido
+/status - Relatório do sistema
+/relatorio_detalhado - Relatório completo
+
+📊 *RELATÓRIOS & LOGS:*
+/status - Relatório básico
+/relatorio_detalhado - Relatório avançado
+/logs - Ver logs do sistema
+
+🔄 *SISTEMA:*
+/limpar - Limpar pedidos antigos
+/reset - Zerar sistema de pedidos
+/help - Esta mensagem de ajuda
+
+📚 *EBOOKS:*
+/listar_ebooks - Listar todos ebooks
+/adicionar_ebook "[NOME]" [PREÇO] - Adicionar ebook
+/editar_ebook [ID] [PREÇO] - Editar preço
+/remover_ebook [ID] - Remover ebook
+
+📈 *ESTATÍSTICAS ATUAIS:*
+• Pedidos pendentes: ${getPendingOrders().length}
+• Total ebooks: ${ebooks.length}
+• Ebooks ativos: ${getActiveEbooks().length}
+• Resets realizados: ${getLogStats().totalResets}`;
+
+                await message.reply(helpMessage);
+                return;
+            }
+
+            // Comando não reconhecido para admin
+            if (messageBody.startsWith('!') || messageBody.startsWith('/')) {
+                await message.reply(`❌ Comando não reconhecido.\nUse /help para ver todos os comandos.`);
+            }
         }
-    }
 
     } catch (error) {
         console.error('❌ Erro ao processar mensagem:', error);
@@ -1405,41 +1508,7 @@ Ebooks ativos: ${getActiveEbooks().length}`;
     }
 });
 
-// ========== SISTEMA DE LOGS ADMIN ==========
-function loadLogs() {
-    try {
-        if (fs.existsSync(LOGS_FILE)) {
-            const data = fs.readFileSync(LOGS_FILE, 'utf8');
-            return JSON.parse(data);
-        }
-    } catch (error) {
-        console.error('❌ Erro ao carregar logs:', error);
-    }
-    return [];
-}
 
-function saveLog(action, details) {
-    try {
-        const logs = loadLogs();
-        const logEntry = {
-            timestamp: new Date().toISOString(),
-            admin: CONFIG.ADMIN_NUMBER,
-            action: action,
-            details: details
-        };
-        
-        logs.push(logEntry);
-        
-        if (logs.length > 100) {
-            logs.splice(0, logs.length - 100);
-        }
-        
-        fs.writeFileSync(LOGS_FILE, JSON.stringify(logs, null, 2));
-        console.log(`📝 Log registrado: ${action}`);
-    } catch (error) {
-        console.error('❌ Erro ao salvar log:', error);
-    }
-}
 
 // ========== SISTEMA DE BLOQUEIO DE PEDIDOS ==========
 let pendingCustomers = new Set();
@@ -1624,6 +1693,7 @@ process.on('SIGINT', async () => {
     console.log('✅ Bot encerrado com sucesso!');
     process.exit(0);
 });
+
 
 
 
