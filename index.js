@@ -4,6 +4,11 @@ const qrcode = require('qrcode-terminal');
 const fs = require('fs');
 const path = require('path');
 
+// Configuração para Render
+if (process.env.NODE_ENV === 'production') {
+    process.env.CHROMIUM_PATH = '/usr/bin/chromium-browser';
+}
+
 // ========== SISTEMA DE CONTROLE DE NOVOS CHATS ==========
 let knownChats = new Set();
 
@@ -496,10 +501,19 @@ const client = new Client({
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
-            '--disable-gpu'
-        ]
+            '--disable-gpu',
+            '--single-process',
+            '--disable-web-security',
+            '--disable-features=AudioService',
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding',
+            '--window-size=1920,1080'
+        ],
+        executablePath: process.env.CHROMIUM_PATH || undefined
     }
 });
+
 
 // ========== SISTEMA QR CODE COM LINK EXTERNO ==========
 client.on('qr', async (qr) => {
@@ -1548,12 +1562,17 @@ client.on('auth_failure', (msg) => {
     console.error('❌ Falha na autenticação:', msg);
 });
 
-client.on('disconnected', (reason) => {
+client.on('disconnected', async (reason) => {
     console.log('❌ Desconectado:', reason);
-    console.log('🔄 Reiniciando em 5 segundos...');
+    console.log('🔄 Reiniciando em 30 segundos...');
+    
+    // 🔄 RESETA o contador para permitir novas tentativas
+    initializationAttempts = 0; 
+    
+    // ⏰ Espera 30 segundos ANTES de tentar reconectar
     setTimeout(() => {
-        client.initialize();
-    }, 5000);
+        initializeBot();
+    }, 30000);
 });
 
 // Salvar relatório periodicamente
@@ -1578,11 +1597,41 @@ client.on('auth_failure', (msg) => {
     console.error('❌ AUTH FAILED:', msg);
 });
 
-client.initialize();
 
+// ========== INICIALIZAÇÃO ROBUSTA ==========
+let initializationAttempts = 0;        // Contador de tentativas
+const MAX_ATTEMPTS = 3;               // Máximo de 3 tentativas
 
-// Inicializar bot
-client.initialize();
+async function initializeBot() {
+    // ⛔ PARA se já tentou muitas vezes
+    if (initializationAttempts >= MAX_ATTEMPTS) {
+        console.log('🚨 Máximo de tentativas atingido. Serviço precisa ser reiniciado.');
+        return;
+    }
+
+    initializationAttempts++;          // ➕ Incrementa contador
+    console.log(`🔄 Tentativa de inicialização ${initializationAttempts}/${MAX_ATTEMPTS}`);
+
+    try {
+        // 🚀 TENTA inicializar o bot
+        await client.initialize();
+        console.log('✅ Bot inicializado com sucesso!');
+    } catch (error) {
+        // ❌ SE FALHAR, tenta novamente depois de um tempo
+        console.error('❌ Erro na inicialização:', error.message);
+        
+        if (initializationAttempts < MAX_ATTEMPTS) {
+            console.log(`⏳ Tentando novamente em 20 segundos...`);
+            setTimeout(initializeBot, 20000); // ⏰ Espera 20 segundos
+        }
+    }
+}
+
+// ⏰ Delay inicial para o sistema estabilizar
+setTimeout(() => {
+    initializeBot();
+}, 5000); // Espera 5 segundos antes da PRIMEIRA tentativa
+
 
 // Graceful shutdown para Windows
 process.on('SIGINT', async () => {
@@ -1592,5 +1641,6 @@ process.on('SIGINT', async () => {
     console.log('✅ Bot encerrado com sucesso!');
     process.exit(0);
 });
+
 
 
