@@ -517,11 +517,10 @@ const client = new Client({
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
-            '--disable-gpu',
-            '--single-process'
+            '--disable-gpu'
         ]
-        // ⬅️ SEM executablePath - deixa o Puppeteer decidir
-    }
+    },
+    browserWS: `wss://chrome.browserless.io?token=${process.env.BROWSERLESS_TOKEN}`
 });
 
 // ========== SISTEMA QR CODE COM LINK EXTERNO ==========
@@ -1679,6 +1678,7 @@ process.on('SIGINT', async () => {
     console.log('✅ Bot encerrado com sucesso!');
     process.exit(0);
 });
+
 
 
 
