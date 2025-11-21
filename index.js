@@ -1,6 +1,5 @@
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
-const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
 
@@ -524,7 +523,7 @@ const client = new Client({
 });
 
 // ========== SISTEMA QR CODE COM LINK EXTERNO ==========
-client.on('qr', async (qr) => {
+client.on('qr', (qr) => {
     console.log('\n╔══════════════════════════════╗');
     console.log('║         📱 QR CODE           ║');
     console.log('║     🇲🇿 MOÇAMBIQUE           ║');
@@ -533,31 +532,18 @@ client.on('qr', async (qr) => {
     // QR Code compacto no terminal
     qrcode.generate(qr, { small: true });
     
-    try {
-        // Gera QR Code como Data URL (imagem base64)
-        const qrDataUrl = await QRCode.toDataURL(qr, {
-            width: 300,
-            margin: 1,
-            color: {
-                dark: '#000000',
-                light: '#FFFFFF'
-            }
-        });
-        
-        console.log('\n🔗 QR CODE EXTERNO GERADO!');
-        console.log('📱 Use este link para escanear mais facilmente:');
-        console.log(qrDataUrl.substring(0, 100) + '...');
-        console.log('\n💡 DICA: Copie o link completo e abra no celular');
-        
-    } catch (error) {
-        console.log('❌ Erro ao gerar QR code externo, usando apenas terminal...');
-    }
+    // Gera link externo para QR Code
+    const qrLink = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`;
     
-    console.log('\n📋 COMO VINCULAR:');
-    console.log('1. WhatsApp → Menu → Dispositivos vinculados');
-    console.log('2. Vincular dispositivo');
-    console.log('3. Escanear QR Code acima ou use o link');
+    console.log('\n🔗 *QR CODE EXTERNO:*');
+    console.log(qrLink);
+    console.log('\n📱 *COMO USAR:*');
+    console.log('1. Abra o link acima no CELULAR');
+    console.log('2. Imagem do QR Code aparecerá');
+    console.log('3. Escaneie com WhatsApp');
+    console.log('4. Ou use o QR code do terminal acima');
     
+    console.log('\n💡 *DICA:* Copie o link e envie por WhatsApp Web para você mesmo');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 });
 
@@ -1683,6 +1669,7 @@ process.on('SIGINT', async () => {
     console.log('✅ Bot encerrado com sucesso!');
     process.exit(0);
 });
+
 
 
 
