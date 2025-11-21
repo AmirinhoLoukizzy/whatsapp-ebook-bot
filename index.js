@@ -510,10 +510,9 @@ const client = new Client({
             '--disable-renderer-backgrounding',
             '--window-size=1920,1080'
         ],
-        
+        executablePath: '/usr/bin/chromium-browser'
     }
 });
-
 
 // ========== SISTEMA QR CODE COM LINK EXTERNO ==========
 client.on('qr', async (qr) => {
@@ -1670,6 +1669,7 @@ process.on('SIGINT', async () => {
     console.log('✅ Bot encerrado com sucesso!');
     process.exit(0);
 });
+
 
 
 
