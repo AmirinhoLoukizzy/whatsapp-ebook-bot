@@ -1561,6 +1561,26 @@ setInterval(() => {
     saveSalesReport();
 }, 300000); // A cada 5 minutos
 
+// DEBUG para Render
+console.log('🚀 Iniciando bot no Render...');
+console.log('📁 Diretório:', __dirname);
+console.log('🔧 Node version:', process.version);
+
+client.on('loading_screen', (percent, message) => {
+    console.log(`🔄 LOADING: ${percent}% - ${message}`);
+});
+
+client.on('authenticated', () => {
+    console.log('✅ AUTHENTICATED: Bot autenticado!');
+});
+
+client.on('auth_failure', (msg) => {
+    console.error('❌ AUTH FAILED:', msg);
+});
+
+client.initialize();
+
+
 // Inicializar bot
 client.initialize();
 
@@ -1572,4 +1592,5 @@ process.on('SIGINT', async () => {
     console.log('✅ Bot encerrado com sucesso!');
     process.exit(0);
 });
+
 
