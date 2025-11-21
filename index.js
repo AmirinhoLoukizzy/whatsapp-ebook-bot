@@ -421,18 +421,8 @@ const client = new Client({
         clientId: "ebook-bot-mz"
     }),
     puppeteer: {
-        executablePath: process.env.CHROME_BIN || null,
         headless: true,
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--disable-gpu',
-            '--single-process'
-        ]
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
     }
 });
 
@@ -1417,3 +1407,4 @@ process.on('SIGINT', async () => {
     process.exit(0);
 
 });
+
