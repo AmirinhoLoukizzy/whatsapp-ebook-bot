@@ -509,8 +509,8 @@ const client = new Client({
             '--disable-backgrounding-occluded-windows',
             '--disable-renderer-backgrounding',
             '--window-size=1920,1080'
-        ],
-        executablePath: '/usr/bin/chromium-browser'
+        ]
+        // ⬅️ SEM executablePath
     }
 });
 
@@ -1669,6 +1669,7 @@ process.on('SIGINT', async () => {
     console.log('✅ Bot encerrado com sucesso!');
     process.exit(0);
 });
+
 
 
 
