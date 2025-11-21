@@ -502,15 +502,9 @@ const client = new Client({
             '--no-first-run',
             '--no-zygote',
             '--disable-gpu',
-            '--single-process',
-            '--disable-web-security',
-            '--disable-features=AudioService',
-            '--disable-background-timer-throttling',
-            '--disable-backgrounding-occluded-windows',
-            '--disable-renderer-backgrounding',
-            '--window-size=1920,1080'
+            '--single-process'
         ]
-        // ⬅️ SEM executablePath
+        // ⬅️ SEM executablePath - deixa o Puppeteer decidir
     }
 });
 
@@ -1669,6 +1663,7 @@ process.on('SIGINT', async () => {
     console.log('✅ Bot encerrado com sucesso!');
     process.exit(0);
 });
+
 
 
 
