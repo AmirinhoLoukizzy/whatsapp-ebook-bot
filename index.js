@@ -293,6 +293,115 @@ function findOrder(orderId) {
     return orders.find(order => order.id === parseInt(orderId));
 }
 
+// ========== SISTEMA DE LOGS ADMIN ==========
+function loadLogs() {
+    try {
+        if (fs.existsSync(LOGS_FILE)) {
+            const data = fs.readFileSync(LOGS_FILE, 'utf8');
+            return JSON.parse(data);
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar logs:', error);
+    }
+    return [];
+}
+
+function saveLog(action, details) {
+    try {
+        const logs = loadLogs();
+        const logEntry = {
+            timestamp: new Date().toISOString(),
+            admin: CONFIG.ADMIN_NUMBER,
+            action: action,
+            details: details
+        };
+        
+        logs.push(logEntry);
+        
+        // Manter apenas os últimos 100 logs
+        if (logs.length > 100) {
+            logs.splice(0, logs.length - 100);
+        }
+        
+        fs.writeFileSync(LOGS_FILE, JSON.stringify(logs, null, 2));
+        console.log(`📝 Log registrado: ${action}`);
+    } catch (error) {
+        console.error('❌ Erro ao salvar log:', error);
+    }
+}
+
+function getLogStats() {
+    const logs = loadLogs();
+    const resetLogs = logs.filter(log => log.action === 'RESET_SYSTEM');
+    
+    return {
+        totalLogs: logs.length,
+        totalResets: resetLogs.length,
+        lastReset: resetLogs.length > 0 ? resetLogs[resetLogs.length - 1].timestamp : 'Nunca',
+        recentActions: logs.slice(-5).map(log => ({
+            action: log.action,
+            timestamp: log.timestamp,
+            details: log.details
+        }))
+    };
+}
+
+// ========== FUNÇÃO DE RESET DE PEDIDOS ==========
+function resetOrderSystem() {
+    const backupData = {
+        timestamp: new Date().toISOString(),
+        totalOrdersBefore: orders.length,
+        pendingOrdersBefore: getPendingOrders().length,
+        approvedOrdersBefore: orders.filter(o => o.status === 'aprovado').length,
+        rejectedOrdersBefore: orders.filter(o => o.status === 'recusado').length
+    };
+    
+    // Fazer backup dos pedidos atuais
+    const backupFile = path.join(dataDir, `backup_orders_${Date.now()}.json`);
+    fs.writeFileSync(backupFile, JSON.stringify(orders, null, 2));
+    
+    // Resetar sistema
+    orders = [];
+    orderCounter = 1;
+    saveOrders();
+    
+    // Registrar no log
+    saveLog('RESET_SYSTEM', {
+        backupFile: path.basename(backupFile),
+        ...backupData,
+        totalOrdersAfter: 0,
+        pendingOrdersAfter: 0
+    });
+    
+    return backupData;
+}
+
+// ========== SISTEMA DE BLOQUEIO DE PEDIDOS ==========
+let pendingCustomers = new Set();
+
+function hasPendingOrder(customerNumber) {
+    return pendingCustomers.has(customerNumber) || 
+           orders.some(order => 
+               order.customerNumber === customerNumber && 
+               order.status === 'aguardando_aprovacao'
+           );
+}
+
+function addPendingCustomer(customerNumber) {
+    pendingCustomers.add(customerNumber);
+}
+
+function removePendingCustomer(customerNumber) {
+    pendingCustomers.delete(customerNumber);
+}
+
+function getCustomerPendingOrder(customerNumber) {
+    return orders.find(order => 
+        order.customerNumber === customerNumber && 
+        order.status === 'aguardando_aprovacao'
+    );
+}
+
 // Obter pedidos pendentes
 function getPendingOrders() {
     return orders.filter(order => order.status === 'aguardando_aprovacao');
@@ -1693,6 +1802,7 @@ process.on('SIGINT', async () => {
     console.log('✅ Bot encerrado com sucesso!');
     process.exit(0);
 });
+
 
 
 
