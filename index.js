@@ -29,13 +29,11 @@ const client = new Client({
     }
 });
 
-I
-// Alternativa: Gerar link do QR Code
+// QR Code PEQUENO
 client.on('qr', (qr) => {
-    console.log('\n📱 ACESSE ESTE LINK NO CELULAR:');
-    console.log('https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(qr));
-    console.log('\nOu escaneie o QR abaixo (use ZOOM):');
+    console.log('\n📱 QR CODE:');
     qrcode.generate(qr, { small: true });
+    console.log('\n📱 Escaneie com WhatsApp!');
 });
 
 // Bot pronto
@@ -204,5 +202,3 @@ client.on('disconnected', (reason) => {
     console.log('🔄 Reiniciando...');
     setTimeout(() => client.initialize(), 5000);
 });
-
-
