@@ -1,5 +1,7 @@
-# fly.toml
+# fly.toml - OTIMIZADO PARA MOÇAMBIQUE
 app = "whatsapp-ebook-bot-mz"
+
+primary_region = "jhg"  # ⬅️ JOHANNESBURG - MELHOR PING!
 
 [build]
   builder = "heroku/buildpacks:20"
