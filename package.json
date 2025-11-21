@@ -4,11 +4,10 @@
   "description": "Bot de WhatsApp para venda automática de ebooks",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js"
   },
   "dependencies": {
-    "venom-bot": "^4.3.7",
+    "whatsapp-web.js": "^1.23.0",
     "qrcode-terminal": "^0.12.0"
   },
   "engines": {
