@@ -3,6 +3,9 @@ const qrcode = require('qrcode-terminal');
 const fs = require('fs');
 const path = require('path');
 
+// Configuração para Railway
+process.env.CHROME_BIN = '/usr/bin/chromium-browser';
+
 // ========== SISTEMA DE CONTROLE DE NOVOS CHATS ==========
 let knownChats = new Set();
 
@@ -418,6 +421,7 @@ const client = new Client({
         clientId: "ebook-bot-mz"
     }),
     puppeteer: {
+        executablePath: process.env.CHROME_BIN || null,
         headless: true,
         args: [
             '--no-sandbox',
@@ -426,7 +430,8 @@ const client = new Client({
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
-            '--disable-gpu'
+            '--disable-gpu',
+            '--single-process'
         ]
     }
 });
@@ -1410,4 +1415,5 @@ process.on('SIGINT', async () => {
     await client.destroy();
     console.log('✅ Bot encerrado com sucesso!');
     process.exit(0);
+
 });
