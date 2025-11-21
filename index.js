@@ -5,8 +5,24 @@ const fs = require('fs');
 const path = require('path');
 
 // Configuração para Render
+// ========== LIMPEZA DE SESSÕES ANTIGAS ==========
 if (process.env.NODE_ENV === 'production') {
     console.log('🔧 Ambiente de produção detectado');
+    
+    // Limpar sessões antigas do WhatsApp Web.js
+    const sessionPath = './.wwebjs_auth';
+    const fs = require('fs');
+    const path = require('path');
+    
+    if (fs.existsSync(sessionPath)) {
+        console.log('🔄 Limpando sessões antigas...');
+        try {
+            fs.rmSync(sessionPath, { recursive: true, force: true });
+            console.log('✅ Sessões antigas removidas');
+        } catch (error) {
+            console.log('⚠️ Não foi possível limpar sessões:', error.message);
+        }
+    }
 }
 
 // ========== SISTEMA DE CONTROLE DE NOVOS CHATS ==========
@@ -1663,6 +1679,7 @@ process.on('SIGINT', async () => {
     console.log('✅ Bot encerrado com sucesso!');
     process.exit(0);
 });
+
 
 
 
