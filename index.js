@@ -29,13 +29,13 @@ const client = new Client({
     }
 });
 
-
-// QR Code MINI
+I
+// Alternativa: Gerar link do QR Code
 client.on('qr', (qr) => {
-    console.log('\n🔷 QR CODE (use Ctrl+/- para zoom):');
-    // Forçar tamanho mínimo
-    const smallQr = require('qrcode-terminal');
-    smallQr.generate(qr, { small: true });
+    console.log('\n📱 ACESSE ESTE LINK NO CELULAR:');
+    console.log('https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(qr));
+    console.log('\nOu escaneie o QR abaixo (use ZOOM):');
+    qrcode.generate(qr, { small: true });
 });
 
 // Bot pronto
@@ -204,4 +204,5 @@ client.on('disconnected', (reason) => {
     console.log('🔄 Reiniciando...');
     setTimeout(() => client.initialize(), 5000);
 });
+
 
