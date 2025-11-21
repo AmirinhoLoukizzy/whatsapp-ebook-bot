@@ -1633,6 +1633,35 @@ setTimeout(() => {
 }, 5000); // Espera 5 segundos antes da PRIMEIRA tentativa
 
 
+// ========== SERVIDOR HTTP PARA O RENDER ==========
+const http = require('http');
+
+// Cria servidor HTTP simples
+const server = http.createServer((req, res) => {
+    if (req.url === '/status' || req.url === '/') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            status: 'online',
+            bot: 'WhatsApp Ebook Bot',
+            timestamp: new Date().toISOString(),
+            ebooks: ebooks.length,
+            pendingOrders: getPendingOrders().length
+        }, null, 2));
+    } else {
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.end('🤖 Bot Online - Use /status para informações\n');
+    }
+});
+// Usa a porta do Render ou 3000 como fallback
+const PORT = process.env.PORT || 3000;
+
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ Servidor HTTP rodando na porta ${PORT}`);
+    console.log('🌐 Render vai manter o serviço ativo');
+    console.log('🔗 Health check disponível na porta ' + PORT);
+});
+
+
 // Graceful shutdown para Windows
 process.on('SIGINT', async () => {
     console.log('\n🔄 Encerrando bot...');
@@ -1641,6 +1670,7 @@ process.on('SIGINT', async () => {
     console.log('✅ Bot encerrado com sucesso!');
     process.exit(0);
 });
+
 
 
 
