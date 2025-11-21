@@ -1,6 +1,6 @@
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
-
+const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
 
@@ -530,30 +530,35 @@ client.on('qr', async (qr) => {
     console.log('║     🇲🇿 MOÇAMBIQUE           ║');
     console.log('╚══════════════════════════════╝');
     
-    // QR Code no terminal
+    // QR Code compacto no terminal
     qrcode.generate(qr, { small: true });
     
     try {
-        // Gerar QR Code como URL externa
-        const qrImageUrl = await qrCode.toDataURL(qr);
-        console.log('\n🔗 QR CODE GERADO COM SUCESSO!');
+        // Gera QR Code como Data URL (imagem base64)
+        const qrDataUrl = await QRCode.toDataURL(qr, {
+            width: 300,
+            margin: 1,
+            color: {
+                dark: '#000000',
+                light: '#FFFFFF'
+            }
+        });
         
-        console.log('\n📋 COMO VINCULAR:');
-        console.log('1. WhatsApp → Menu → Dispositivos vinculados');
-        console.log('2. Vincular dispositivo');
-        console.log('3. Escanear QR Code acima');
-        console.log('4. Ou use o link alternativo se necessário');
+        console.log('\n🔗 QR CODE EXTERNO GERADO!');
+        console.log('📱 Use este link para escanear mais facilmente:');
+        console.log(qrDataUrl.substring(0, 100) + '...');
+        console.log('\n💡 DICA: Copie o link completo e abra no celular');
         
-        console.log('\n💡 DICA: Se o QR não funcionar:');
-        console.log('• Certifique-se de ter boa iluminação');
-        console.log('• Aproxime a câmera gradualmente');
-        console.log('• Tente em outro dispositivo se possível');
-        
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     } catch (error) {
         console.log('❌ Erro ao gerar QR code externo, usando apenas terminal...');
-        qrcode.generate(qr, { small: true });
     }
+    
+    console.log('\n📋 COMO VINCULAR:');
+    console.log('1. WhatsApp → Menu → Dispositivos vinculados');
+    console.log('2. Vincular dispositivo');
+    console.log('3. Escanear QR Code acima ou use o link');
+    
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 });
 
 // Bot pronto
@@ -1678,6 +1683,7 @@ process.on('SIGINT', async () => {
     console.log('✅ Bot encerrado com sucesso!');
     process.exit(0);
 });
+
 
 
 
