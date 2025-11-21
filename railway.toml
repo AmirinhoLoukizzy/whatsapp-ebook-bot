@@ -6,3 +6,8 @@ NODE_VERSION = "18"
 
 [deploy]
 startCommand = "npm start"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
+
+[env]
+NODE_ENV = "production"
