@@ -29,10 +29,13 @@ const client = new Client({
     }
 });
 
-// QR Code
+
+// QR Code MINI
 client.on('qr', (qr) => {
-    console.log('📱 QR CODE:');
-    qrcode.generate(qr, { small: true });
+    console.log('\n🔷 QR CODE (use Ctrl+/- para zoom):');
+    // Forçar tamanho mínimo
+    const smallQr = require('qrcode-terminal');
+    smallQr.generate(qr, { small: true });
 });
 
 // Bot pronto
@@ -201,3 +204,4 @@ client.on('disconnected', (reason) => {
     console.log('🔄 Reiniciando...');
     setTimeout(() => client.initialize(), 5000);
 });
+
