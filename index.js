@@ -376,31 +376,6 @@ function resetOrderSystem() {
     return backupData;
 }
 
-// ========== SISTEMA DE BLOQUEIO DE PEDIDOS ==========
-let pendingCustomers = new Set();
-
-function hasPendingOrder(customerNumber) {
-    return pendingCustomers.has(customerNumber) || 
-           orders.some(order => 
-               order.customerNumber === customerNumber && 
-               order.status === 'aguardando_aprovacao'
-           );
-}
-
-function addPendingCustomer(customerNumber) {
-    pendingCustomers.add(customerNumber);
-}
-
-function removePendingCustomer(customerNumber) {
-    pendingCustomers.delete(customerNumber);
-}
-
-function getCustomerPendingOrder(customerNumber) {
-    return orders.find(order => 
-        order.customerNumber === customerNumber && 
-        order.status === 'aguardando_aprovacao'
-    );
-}
 
 // Obter pedidos pendentes
 function getPendingOrders() {
@@ -1802,6 +1777,7 @@ process.on('SIGINT', async () => {
     console.log('✅ Bot encerrado com sucesso!');
     process.exit(0);
 });
+
 
 
 
