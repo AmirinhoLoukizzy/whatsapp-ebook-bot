@@ -29,11 +29,28 @@ const client = new Client({
     }
 });
 
-// QR Code PEQUENO
+
+// QR Code COM LINK ALTERNATIVO
 client.on('qr', (qr) => {
-    console.log('\n📱 QR CODE:');
-    qrcode.generate(qr, { small: true });
-    console.log('\n📱 Escaneie com WhatsApp!');
+    console.log('\n📱 QR CODE PARA WHATSAPP:');
+    console.log('╔══════════════════════════════╗');
+    console.log('║   ESCANEIE COM SEU CELULAR   ║');
+    console.log('╚══════════════════════════════╝');
+    
+    // QR Code visual
+    qrcode.generate(qr, { 
+        small: true 
+    });
+    
+    // Link alternativo para celular
+    const qrLink = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qr)}`;
+    console.log('\n📲 LINK ALTERNATIVO:');
+    console.log(qrLink);
+    console.log('\n💡 DICA: Abra este link no celular se o QR não escanear');
+    console.log('╔══════════════════════════════╗');
+    console.log('║  WhatsApp → Menu → Dispositivos');
+    console.log('║  → Vincular dispositivo');
+    console.log('╚══════════════════════════════╝');
 });
 
 // Bot pronto
@@ -202,3 +219,4 @@ client.on('disconnected', (reason) => {
     console.log('🔄 Reiniciando...');
     setTimeout(() => client.initialize(), 5000);
 });
+
